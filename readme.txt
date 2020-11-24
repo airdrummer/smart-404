@@ -121,6 +121,10 @@ For support and latest source code, please visit https://github.com/leonstafford
  
 == Upgrade Notice ==
 
+= 0.6 =
+
+Fix deprecation warning in admin UI. Bump WP support to 5.6.
+
 = 0.5 =
 This version revises the search algorithm to provide better results
 
