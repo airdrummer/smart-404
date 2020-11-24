@@ -192,7 +192,7 @@ function smart404_redirect_canonical_filter($redirect, $request) {
  * @since 0.1
  */
 function smart404_setup_admin() {
-	add_options_page( 'Smart 404', 'Smart 404', 5, __FILE__, 'smart404_options_page' );
+	add_options_page( 'Smart 404', 'Smart 404', 'manage_options', __FILE__, 'smart404_options_page' );
 	wp_enqueue_script('jquery-ui-sortable');
 }
 
