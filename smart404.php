@@ -1,9 +1,9 @@
 <?php
 /*
 Plugin Name: Smart 404
-Plugin URI: http://atastypixel.com/blog/wordpress/plugins/smart-404/
+Plugin URI: https://github.com/leonstafford/smart-404
 Description: Rescue your viewers from site errors!  When content cannot be found, Smart 404 will use the current URL to attempt to find matching content, and redirect to it automatically. Smart 404 also supplies template tags which provide a list of suggestions, for use on a 404.php template page if matching content can't be immediately discovered.
-Version: 0.5
+Version: 0.6
 Author: Michael Tyson
 Author URI: http://atastypixel.com/blog/
 */

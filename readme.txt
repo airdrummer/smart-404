@@ -1,10 +1,13 @@
 === Smart 404 ===
 
-Donate link: http://atastypixel.com/blog/wordpress/plugins/smart-404/
 Tags: 404, search, redirection
 Requires at least: 2.6
-Tested up to: 3.0.1
-Stable tag: 0.5
+Requires PHP: 5.3
+Tested up to: 5.6
+Stable tag: 0.6
+Contributors: michaeltyson,leonstafford
+License: GPLv2
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
 Automatically redirect to the content the user was most likely after, or show suggestions, instead of showing an unhelpful 404 error.
 
@@ -58,7 +61,16 @@ a loop like that above, do not enable searching of pages.
 
 Retrieve an array of search terms used to populate the suggestions list, for use with contextual highlighting, etc.
 
+For support and latest source code, please visit https://github.com/leonstafford/smart-404
+
 == Changelog ==
+
+= 0.6 =
+
+ * fix deprecation notice
+ * add GitHub repo as communications point
+ * update plugin's WP readme file
+ * bump WP supported version
 
 = 0.5 =
 
