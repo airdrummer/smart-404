@@ -16,11 +16,11 @@ Get Smart 404 over at the Smart 404 WordPress Plugin page!
 
 ## Installation
 
-    Unzip the package, and upload smart404 to the /wp-content/plugins/ directory on your WordPress site.
-    Activate the plugin through the ‘Plugins’ menu in WordPress.
-    Optionally, alter your theme’s 404.php template to list suggestions from Smart 404
+ - Unzip the package, and upload smart404 to the /wp-content/plugins/ directory on your WordPress site.
+ - Activate the plugin through the ‘Plugins’ menu in WordPress.
+ - Optionally, alter your theme’s 404.php template to list suggestions from Smart 404
 
-Note: If you desire reporting on 404 errors that Smart 404 is unable to remedy, I recommend Joe Hoyle’s JH 404 Logger, which adds an item to your dashboard listing 404 errors. 404 Notifier by Alex King will send emails for 404 errors, but I hear reports that emails are sent for 404 errors that this plugin is able to recover from, not just unrecoverable errors.
+*Note: If you desire reporting on 404 errors that Smart 404 is unable to remedy, I recommend Joe Hoyle’s JH 404 Logger, which adds an item to your dashboard listing 404 errors. 404 Notifier by Alex King will send emails for 404 errors, but I hear reports that emails are sent for 404 errors that this plugin is able to recover from, not just unrecoverable errors.*
 
 ## Configuration
 
@@ -46,13 +46,16 @@ This will ignore all numbers, followed by a hyphen, at the start of the URL.
 
 To provide a helpful list of suggested posts in your 404 pages, modify the 404.php template in your theme to use a Smart 404 template tag. For example:
 
+```php
     <?php if (smart404_has_suggestions()) : ?>
     Try one of these links:
     <?php smart404_suggestions(); ?>
     <?php endif; ?>
+```
 
 Or, for something a little more complicated:
 
+```php
     <?php if (smart404_loop()) : ?>
     <p>Or, try one of these posts:</p>
     <?php while (have_posts()) : the_post(); ?>
@@ -63,6 +66,7 @@ Or, for something a little more complicated:
       <small><?php the_excerpt(); ?></small>
     <?php endwhile; ?>
     <?php endif; ?>
+```
 
 Note that smart404_loop() will only work for posts, not pages, due to limitations in the loop mechanism. Several template tags are supplied by Smart 404 for use in the 404.php template:
 smart404_has_suggestions
