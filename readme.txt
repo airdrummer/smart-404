@@ -4,8 +4,8 @@ Tags: 404, search, redirection
 Requires at least: 2.6
 Requires PHP: 5.3
 Tested up to: 5.6
-Stable tag: 0.6
-Contributors: michaeltyson,leonstafford
+Stable tag: 0.6.1
+Contributors: michaeltyson,leonstafford,airdrummer
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -65,12 +65,42 @@ For support and latest source code, please visit https://github.com/leonstafford
 
 == Changelog ==
 
-= 0.6 =
+= 0.6.1 =
+roll up
 
+= 0.6 =
  * fix deprecation notice
  * add GitHub repo as communications point
  * update plugin's WP readme file
  * bump WP supported version
+
+Version:	0.5.8	added skip_ignored, smart404_get_search_terms($format = 'array') 
+Author:		air_drummer@verizon.net 17may20
+
+Version:	0.5.7	added replacements
+Author:		air_drummer@verizon.net 10may20
+
+Version:	0.5.6.3	fixed debug output
+Author:		air_drummer@verizon.net 20mar13
+
+Version:	0.5.6	improved smart404_suggestions
+Author:		air_drummer@verizon.net 4mar13
+
+Version:	0.5.5	improved walk_uri
+Author:		air_drummer@verizon.net 3mar13
+
+Version:	0.5.4	walk_uri
+Author:		air_drummer@verizon.net 25feb13
+
+Version:	0.5.3	debug levels
+Author:		air_drummer@verizon.net 12dec12
+
+Version:	0.5.2	search_whole_uri
+Author:		air_drummer@verizon.net 30jul12
+
+Version:	0.5.1	 don't take 1st match 
+Author:		air_drummer@verizon.net 15jul12
+
 
 = 0.5 =
 
