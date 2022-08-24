@@ -2,9 +2,9 @@
 
 Tags: 404, search, redirection
 Requires at least: 2.6
-Requires PHP: 5.3
-Tested up to: 5.6
-Stable tag: 0.6.1
+Requires PHP: 5.4
+Tested up to: 7.4
+Stable tag: 0.7
 Contributors: michaeltyson,leonstafford,airdrummer
 License: GPLv2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -65,8 +65,8 @@ For support and latest source code, please visit https://github.com/leonstafford
 
 == Changelog ==
 
-= 0.6.1 =
-roll up
+= 0.7 =
+roll up 0.5.8, improved replacement
 
 = 0.6 =
  * fix deprecation notice

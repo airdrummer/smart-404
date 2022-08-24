@@ -5,8 +5,7 @@
  		load search field with smart404's search terms, focus on s.f.
  */
 
-get_header(); 
-?>
+get_header(); ?>
 
 	<div id="content-container">
 		<div id="content" role="main">
@@ -16,7 +15,8 @@ get_header();
 <?php _e( 'Not Found', 'subpackage' ); ?>
 				</h1>
 				<div class="entry-content" style="text-align:center;">
-<?php if (function_exists('smart404_display_suggestions'))
+<?php 	_e( 'Apologies, but the page you requested could not be found.','yourthemenamehere'); ?>
+<?php 	if (function_exists('smart404_display_suggestions'))
 	smart404_display_suggestions('yourthemenamehere'); ?>
 				</div><!-- .entry-content -->
 			</div><!-- #post-0 -->

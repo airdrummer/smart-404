@@ -46,20 +46,20 @@ function smart404_redirect()
 
 	// Extract any GET parameters from URL
 	$uri = urldecode( $_SERVER["REQUEST_URI"] );
-	$url_parts = parse_url($uri);	
-	$uri = $url_parts['path'];
+	$urlParts = parse_url($uri);	
+	$uri = $urlParts['path'];
 
-	parse_str((isset($url_parts['query']) ? $url_parts['query'] : ""), $get_params);
-	if( ! isset($get_params['walkuri']))
-		$get_params['walkuri'] = [];
-	if( ! isset($get_params['redir']))
-		$get_params['redir']   = [];
+	parse_str((isset($urlParts['query']) ? $urlParts['query'] : ""), $getParams);
+	if( ! isset($getParams['walkup']))
+		$getParams['walkup'] = [];
+	if( ! isset($getParams['replaced']))
+		$getParams['replaced']   = [];
 
 	smart404_set_search_words(
 		trim(
 			preg_replace( "@[-_/]@", " ", $uri)
-			. " " . implode(" ", array_reverse($get_params['walkuri']))
-//			. " " . implode(" ", $get_params['redir'])
+			. " " . implode(" ", array_reverse($getParams['walkup']))
+//			. " " . implode(" ", $getParams['redir'])
 		));
 	smart404_set_suggestions(array());
 
@@ -84,9 +84,9 @@ function smart404_redirect()
 	}
 
 	$replacements = trim( get_option('replacements' ));
-//	if ( empty($get_params['redir']) ) //not already replaced
+//	if ( empty($getParams['redir']) ) //not already replaced
 	$replacements_array = preg_split('/\n|\r/', $replacements, -1, PREG_SPLIT_NO_EMPTY);
-	if (count($get_params['redir']) < count($replacements_array))
+	if (count($getParams['replaced']) < count($replacements_array))
 	{
    	    if ( $debug_smart404 > 1 ) 
 		    error_log("smart404_redirect: replacements_array: "
@@ -100,16 +100,16 @@ function smart404_redirect()
 			if ($count == 0)
 				continue;
 			if ( $debug_smart404 > 0 )
-    			error_log("smart404_redirect: redir=" . $old . "->" . $new);
-    		$get_params['redir'][] = $old;
-            wp_redirect( $redir . '?' . http_build_query($get_params), 301, "smart-404");
+    			error_log("smart404_redirect: replaced:" . $old . "->" . $new);
+    		$getParams['replaced'][] = $old;
+            wp_redirect( $redir . '?' . http_build_query($getParams), 301, "smart-404");
             exit;
 		}
 	}
 	
 	$patterns = trim( get_option('ignored_patterns' ) ); 
     $patterns_array = ( ! empty( $patterns ) 
-    					? preg_split('/\n|\r/', $patterns, -1, PREG_SPLIT_NO_EMPTY); 
+    					? preg_split('/\n|\r/', $patterns, -1, PREG_SPLIT_NO_EMPTY)
 						: array());
 
 	if ( $skip_ignored )
@@ -163,8 +163,8 @@ function smart404_redirect()
 	smart404_set_search_words(
 		trim(
 			 preg_replace( "@[-_]@", " ", $search)
-			. " " . implode(" ", $get_params['walkuri'])
-//			. " " . implode(" ", $get_params['redir'])
+			. " " . implode(" ", array_reverse($getParams['walkup']))
+//			. " " . implode(" ", $getParams['redir'])
 		));
 
 	$search_groups = (array)get_option( 'also_search' );
@@ -198,13 +198,13 @@ function smart404_redirect()
 								. $group . ":" . $posts[0]->title );
 						wp_redirect( 
 							get_permalink( $posts[0]->ID )
-							. '?' . http_build_query($get_params), 
+							. '?' . http_build_query($getParams), 
 							301 , "smart-404");
 						exit;
 					}
 				}
 				if ( $debug_smart404 > 1 )
-					error_log("smart404_redirect: exact: "
+					error_log("smart404_redirect:exact:"
 							. $group . ": #matches=". $mct
 							. ( $debug_smart404 > 4 
 								? ":" . print_r($posts,true) : ""));
@@ -233,7 +233,7 @@ function smart404_redirect()
 								. $group . ": " . $posts[0]->title);
 		          		wp_redirect( 
 		          			get_permalink( $posts[0]->ID )
-		          			. '?' . http_build_query($get_params), 
+		          			. '?' . http_build_query($getParams), 
 		          			301, "smart-404");
 		   	    		exit;
 					}
@@ -251,12 +251,10 @@ function smart404_redirect()
 					      	error_log("smart404_redirect:general:" 
 								. ($take_1st_match ? "take_1st_match":"") 
 								. ":tag:" . $posts[0]->name);
-				  		$redir = get_tag_link(
-				  					$posts[0]->term_id)
-		          					. '?' . http_build_query($get_params), 
-		          					301, "smart-404");
+				  		$redir = get_tag_link($posts[0]->term_id)
+		          					. '?' . http_build_query($getParams);
 				        if ( $debug_smart404 > 1 )
-					        error_log("smart404_redirect redir=". $redir);
+					        error_log("smart404_redirect:redir:". $group . ": " . $redir);
 		          		wp_redirect($redir, 301, "smart-404");
 				   		exit;
 		   			}
@@ -273,10 +271,11 @@ function smart404_redirect()
 			     		if ( $debug_smart404 > 0 )
 			     			error_log("smart404_redirect:exact:take_1st_match" 
 			     			. ":category:" . $posts[0]->name);
-			         	wp_redirect(
-			         		get_category_link($posts[0]->term_id)
-		          			. '?' . http_build_query($get_params), 
-		          			301, "smart-404");
+			         	$redir = get_category_link($posts[0]->term_id)
+		          			        . '?' . http_build_query($getParams);
+				        if ( $debug_smart404 > 1 )
+					        error_log("smart404_redirect:redir:". $group . ": " . $redir);
+			         	wp_redirect($redir, 301, "smart-404");
 			         	exit;
 					}
 			    }
@@ -297,8 +296,8 @@ function smart404_redirect()
 		{
 			if ( $debug_smart404 > 1 )
 	  		   error_log("smart404_redirect:walk_uri=" . $uri . "= tail=" . $tail);
-	  		$get_params['walkuri'][]= $tail;
-			wp_redirect($uri . '?' . http_build_query($get_params), 301, "smart-404");
+	  		$getParams['walkup'][]= $tail;
+			wp_redirect($uri . '?' . http_build_query($getParams), 301, "smart-404");
 			exit;
 		}
 	}
@@ -592,11 +591,12 @@ function smart404_set_search_words($search_words, $delim = " ")
 /**
  * Template tag for 404-page
  */
-?>
+
 function smart404_display_suggestions($themename = "smart-404") 
 { 
-	echo "<div class=smart404>";
-	_e( 'Apologies, but the page you requested could not be found.',$themename);
+	echo "<div class=smart-404>";
+
+	$sts = smart404_get_search_terms('string');
 	if (smart404_has_suggestions())
 	{
 		echo "<br/>";
@@ -606,9 +606,8 @@ function smart404_display_suggestions($themename = "smart-404")
 	}
 	else
 		echo "<br>Please";
-	_e( 'Perhaps one of these is what you are looking for:',$themename);
+_e( ' try searching our webpages:&nbsp;',$themename); 
 ?>
-
  <form role="search" method="get" id="searchform"
     class="searchform" action="<?php echo esc_url( home_url( '/' ) ); ?>">
     <div>
