@@ -5,9 +5,11 @@ Plugin URI: https://github.com/airdrummer/smart-404
 
 Description: Rescue your viewers from site errors!  When content cannot be found, Smart 404 will use the current URL to attempt to find matching content, and redirect to it automatically. Smart 404 also supplies template tags which provide a list of suggestions, for use on a 404.php template page if matching content can't be immediately discovered.
 
-Version: 0.5.8
-Author: airdrummer
-Author URI: https://github.com/airdrummer/
+Version:	0.7 airdrummer
+Version: 0.5
+Author: Michael Tyson
+
+Author URI: http://atastypixel.com/blog/
 */
 
 /*  Copyright 2008 Michael Tyson <mike@tyson.id.au>
@@ -25,8 +27,8 @@ Author URI: https://github.com/airdrummer/
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
-
 */
+
 
 /**
  * Main action handler
@@ -41,223 +43,269 @@ function smart404_redirect()
 {
 	if ( !is_404() )
 		return;
-	$GLOBALS["__smart404"]["search_words"] = array();
-	    
+
 	// Extract any GET parameters from URL
 	$uri = urldecode( $_SERVER["REQUEST_URI"] );
-	$get_params = "";
-	if ( preg_match("@/?(\?.*)@", $uri, $matches) ) {
-	    $get_params = $matches[1];
-	}
+	$url_parts = parse_url($uri);	
+	$uri = $url_parts['path'];
+
+	parse_str((isset($url_parts['query']) ? $url_parts['query'] : ""), $get_params);
+	if( ! isset($get_params['walkuri']))
+		$get_params['walkuri'] = [];
+	if( ! isset($get_params['redir']))
+		$get_params['redir']   = [];
+
+	smart404_set_search_words(
+		trim(
+			preg_replace( "@[-_/]@", " ", $uri)
+			. " " . implode(" ", array_reverse($get_params['walkuri']))
+//			. " " . implode(" ", $get_params['redir'])
+		));
+	smart404_set_suggestions(array());
 
 	// debug levels 1-5    2dec12
 	$debug_smart404 = intval(get_option('debug_smart404' ));
-   	if ( $debug_smart404 > 0 ) 
-		 error_log("smart404_redirect: uri =" . $uri );
-	
-	//  replacements	10may20
-	$replacements = trim( get_option('replacements' ));
-	if (strpos($get_params, 'redir=') === FALSE ) //not already replaced
-	{
-	    $replacements_array = array();
-        $replacements_array = preg_split('/\n|\r/', $replacements, -1, PREG_SPLIT_NO_EMPTY);
-   	    if ( $debug_smart404 > 4 ) 
-		    error_log("smart404_redirect: replacements_array =" . join($replacements_array,",") );
-		foreach ( $replacements_array as $replacement )
-		{
-			list($old,$new) = explode(",",$replacement);
-			$redir = preg_replace("@".$old."@",$new,$uri);
-			if ($redir != $uri)
-			{
-				if ( $debug_smart404 > 1 )
-    				error_log("smart404_redirect: redir=/" . $old . "/" . $new);
-              	wp_redirect( $redir . (empty($get_params) ? "?" : "&") . "redir=". $old, 301 , "smart-404");
-            	exit;
-			}
-		}
-	}
-	
-    // don't take 1st match air_drummer@verizon.net 15jul12
+	if ( $debug_smart404 > 0 )
+    	error_log("smart404_redirect -------- "
+    				. get_the_user_ip() . " -------- ". $uri);
+
 	$take_1st_match   = get_option('take_1st_match' );
 	$take_exact_match = get_option('take_exact_match' );
 	$search_whole_uri = get_option('search_whole_uri' );
 	$walk_uri         = get_option('walk_uri' );
 	$skip_ignored     = get_option('skip_ignored' );
-	if ( $debug_smart404 > 4 ) 
+	if ( $debug_smart404 > 1 ) 
 	{
 		error_log("smart404_redirect: take_1st_match="   . ( $take_1st_match  ? "yes" : "no" ) );
 		error_log("smart404_redirect: take_exact_match=" . ( $take_exact_match ? "yes" : "no" ) );
 		error_log("smart404_redirect: search_whole_uri=" . ( $search_whole_uri ? "yes" : "no" ) );
-		error_log("smart404_redirect: walk_uri="         . ( $walk_uri ? "yes" : "no" ) );
-		error_log("smart404_redirect: skip_ignored ="    . ( $skip_ignored ? "yes" : "no" ) );
+		error_log("smart404_redirect: walk_uri=" . ( $walk_uri ? "yes" : "no" ) );
+		error_log("smart404_redirect: skip_ignored=" . ( $skip_ignored ? "yes" : "no" ) );
 	}
 
-	// Extract search term from URL
-	$patterns_array = array();
-	if ( ( $patterns = trim( get_option('ignored_patterns' ) ) ) ) 
+	$replacements = trim( get_option('replacements' ));
+//	if ( empty($get_params['redir']) ) //not already replaced
+	$replacements_array = preg_split('/\n|\r/', $replacements, -1, PREG_SPLIT_NO_EMPTY);
+	if (count($get_params['redir']) < count($replacements_array))
 	{
-        $patterns_array = preg_split('/\n|\r/', $patterns, -1, PREG_SPLIT_NO_EMPTY); /* explode( '\n', $patterns ); */
+   	    if ( $debug_smart404 > 1 ) 
+		    error_log("smart404_redirect: replacements_array: "
+		    		. join($replacements_array," : ") );
+		$redir = $uri;
+		foreach ( $replacements_array as $replacement )
+		{
+			list($old,$new) = explode(",",$replacement);
+			$count=0;
+			$redir = preg_replace("@".$old."@", $new, $redir, 1, $count);
+			if ($count == 0)
+				continue;
+			if ( $debug_smart404 > 0 )
+    			error_log("smart404_redirect: redir=" . $old . "->" . $new);
+    		$get_params['redir'][] = $old;
+            wp_redirect( $redir . '?' . http_build_query($get_params), 301, "smart-404");
+            exit;
+		}
 	}
+	
+	$patterns = trim( get_option('ignored_patterns' ) ); 
+    $patterns_array = ( ! empty( $patterns ) 
+    					? preg_split('/\n|\r/', $patterns, -1, PREG_SPLIT_NO_EMPTY); 
+						: array());
+
 	if ( $skip_ignored )
 	{
-        foreach ( $patterns_array as $skipped_pattern ) 
+       foreach ( $patterns_array as $skipped_pattern ) 
 		{
-			if (preg_match("@".$skipped_pattern."@", $uri, $matches) != FALSE)
+			if (preg_match("@".$skipped_pattern."@", $uri, $matches))
 			{
-				if ( $debug_smart404 > 4 ) 
-					error_log("smart404_redirect: skipped_pattern=" . $skipped_pattern . " matches=" . implode(" ",$matches));
+				if ( $debug_smart404 > 0 ) 
+					error_log("smart404_redirect: skipped_pattern=" 
+							 . $skipped_pattern . " matches="
+							 . implode(" ",$matches));
 				return;
 			}
 		}
 	}
+
 	$patterns_array[] = "/(trackback|feed|(comment-)?page-?[0-9]*)/?$";
 	$patterns_array[] = "\.(html|php)$";
 	$patterns_array[] = "/?\?.*";
-	$patterns_array = array_map(create_function('$a', '$sep = (strpos($a, "@") === false ? "@" : "%"); return $sep.trim($a).$sep."i";'), $patterns_array);
+	$patterns_array = array_map(
+						create_function(
+							'$a', '$sep = 
+							(strpos($a, "@") === false ? "@" : "%"); 
+							return $sep.trim($a).$sep."i";'),
+						$patterns_array);
 	
-    $search_groups = (array)get_option( 'also_search' );
-    if ( !$search_groups ) $search_groups = array("posts","pages","tags","categories");
+	$search_groups = (array)get_option( 'also_search' );
+	if ( !$search_groups ) 
+		$search_groups = array("posts","pages","tags","categories");
 
-	if ( $debug_smart404 > 4 ) 
+	if ( $debug_smart404 > 2 ) 
 	{
 		error_log("smart404_redirect: ignored_patterns_input=" . $patterns );
 		error_log("smart404_redirect: ignored_patterns_array=" . join($patterns_array,",") );
      	error_log("smart404_redirect: search_groups=" . join($search_groups,","));
 	}
-   	
-    $matches = array();
-    $mct = 0;
-    
-    if ( $walk_uri ) 
-    {
-        $GLOBALS["__smart404"]["search_words"] = explode("/", $uri); /* only save starting uri in walk */
-    }
 
-    while ( TRUE ) /* loop for walk_uri, exit explicitly */
-    {
-        if ( $debug_smart404 > 1 )
-           error_log("smart404_redirect: uri=" . $uri );
-    	$search = preg_replace( $patterns_array, "", $uri );
-    	if ( $search_whole_uri ) {
-    		$search = str_replace("/", "-", $search);
-    	} else {
-    		$search = basename(trim($search));
-    	}
-    	$search = str_replace("_", "-", $search);
-    	$search = trim(preg_replace( $patterns_array, "", $search));
-    	if ( $debug_smart404 > 2 )
-    		error_log("smart404_redirect: search=" . $search);
-    	
-    	if ( !$search ) break; /* explicitly exit while */
-    	
-    	$search_words = trim(preg_replace( "@[_-]@", " ", $search));
-        if ( ! $walk_uri ) {
-    	   $GLOBALS["__smart404"]["search_words"] = explode(" ", $search_words);
-    	}
-    	if ( $debug_smart404 > 3 )
-    		error_log("smart404_redirect: search_words=" . $search_words);
-    	
-        // Search twice: First looking for exact title match (high priority), then for a general search
-        foreach ( $search_groups as $group ) 
-        {
-            switch ( $group ) 
-            {
-                case "posts":
-                case "pages":
-                   // Search for posts with exact name, redirect if one found
-                    $group = rtrim($group, "s");
-            	    $posts = get_posts( array( "name" => $search, "post_type" => $group ) );
-            		if ( count( $posts ) == 1) {
-               			if ( $take_1st_match or $take_exact_match ) 
-               			{
-    					    if ( $debug_smart404 > 1 )
-    					    	error_log("smart404_redirect: exact=" . $group );
-              			    wp_redirect( get_permalink( $posts[0]->ID ) . $get_params, 301 , "smart-404");
-            				exit;
-               			}
-               		}
-                    break;
-            		
-            	case "tags":
-            	    // Search tags
-            		$tags = get_tags( array ( "name__like" => $search ) );
-             		if ( count( $tags ) == 1) {
-               			if ( $take_1st_match or $take_exact_match ) 
-               			{
-    					   if ( $debug_smart404 > 1 )
-    					      error_log("smart404_redirect: exact=tags");
-           					wp_redirect(get_tag_link($tags[0]->term_id) . $get_params, 301, "smart-404");
-            				exit;
-            			}
-             		}
-            		break;
+	$search = preg_replace( $patterns_array, "", $uri );
+	if ( $search_whole_uri )
+		$search = ltrim(str_replace("/", "-", $search),"-");
+	else 
+		$search = basename(trim($search));
+	$search = str_replace("_", "-", $search);
+	
+	if ( ! $search ) 
+		return;
+	
+   	if ( $debug_smart404 > 1 )
+   		error_log("smart404_redirect: search=" . $search);
+	smart404_set_search_words(
+		trim(
+			 preg_replace( "@[-_]@", " ", $search)
+			. " " . implode(" ", $get_params['walkuri'])
+//			. " " . implode(" ", $get_params['redir'])
+		));
 
-               case "categories":
-                    // Search categories
-            		$categories = get_categories( array ( "name__like" => $search ) );
-             		if ( count( $categories ) == 1) {
-               			if ( $take_1st_match or $take_exact_match ) 
-               			{
-        					if ( $debug_smart404 > 1 )
-        					   error_log("smart404_redirect: exact=categories");
-            				wp_redirect(get_category_link($categories[0]->term_id) . $get_params, 301, "smart-404");
-            				exit;
-               			}
-            		}
-            		break;
-            }
-        }
-        
-        // Now perform general search
-        foreach ( $search_groups as $group ) 
-        {
-            switch ( $group ) 
-            {
-                case "posts":
-                case "pages":
-                    $group = rtrim($group, "s");
-                    $posts = smart404_search($search, $group);
-             		if ( $take_1st_match and (count( $posts ) == 1) ) 
-             		{
-    					if ( $debug_smart404 > 1 )
-    					   error_log("smart404_redirect: general=" . $group);
-               			wp_redirect( get_permalink( $posts[0]->ID ) . $get_params, 301 , "smart-404");
-            			exit;
-               		}
-    				$matches = array_merge($matches, $posts);
-                    break;                
-             }
-        }
-        
-        $mct = count( $matches );
-        if (( $mct == 1 ) || ( $take_1st_match and ( $mct > 0 ))) 
-        {
-            if ( $debug_smart404 > 1 )
-                error_log("smart404_redirect:1st= " . $matches[0]->post_name );
-            wp_redirect( get_permalink( $matches[0]->ID ) . $get_params, 301 , "smart-404");
-            exit;
-        }
-        
-        if ( $walk_uri and ( $mct == 0 ) ) 
-        {
-           	$uri = join("/", array_slice(explode("/", $uri),0,-1)); /* drop last element */
-            if ( $uri ) 
-            {
-           		if ( $debug_smart404 > 1 )
-           		   error_log("smart404_redirect:walk_uri=" . $uri );
-           	} else {
-           	    break; /* explicitly exit while */
-           	}
-        } else {
-            break; /* explicitly exit while */
-        }
-    }
-    
-    if ( $debug_smart404 > 0 ) {
-	   $uri = urldecode( $_SERVER["REQUEST_URI"] );
-       error_log("smart404_redirect: uri=" . $uri . "= #matches=" . $mct);
-    }
-    $GLOBALS["__smart404"]["suggestions"] =  $matches;
+	$search_groups = (array)get_option( 'also_search' );
+	if ( !$search_groups ) 
+		$search_groups = array("posts","pages","tags","categories");
+
+	$matches = array();
+	$mct = 0;
+
+    // Search twice: First looking for exact title match (high priority), 
+    //					then for a general search
+	foreach ( $search_groups as $group ) 
+	{
+	   switch ( $group ) 
+	   {
+	       case "posts":
+	       case "pages":
+	          // Search for posts with exact name, redirect if one found
+				$group = rtrim($group, "s");
+				$posts = get_posts( array( "name" => $search, "post_type" => $group ) );
+				$mct = count( $posts );
+				if ( $mct > 0) 
+				{
+					$matches = array_unique(array_merge($matches, $posts), SORT_REGULAR);
+					if ( $take_1st_match or ($take_exact_match and $mct = 1)) 
+					{
+						if ( $debug_smart404 > 0 )
+							error_log("smart404_redirect:exact:"
+								. ($take_1st_match? "take_1st_match":"") 
+								. ($take_exact_match? "take_exact_match":"") 
+								. $group . ":" . $posts[0]->title );
+						wp_redirect( 
+							get_permalink( $posts[0]->ID )
+							. '?' . http_build_query($get_params), 
+							301 , "smart-404");
+						exit;
+					}
+				}
+				if ( $debug_smart404 > 1 )
+					error_log("smart404_redirect: exact: "
+							. $group . ": #matches=". $mct
+							. ( $debug_smart404 > 4 
+								? ":" . print_r($posts,true) : ""));
+				break;
+		}
+	}
+	
+	// Now perform general search
+	foreach ( $search_groups as $group ) 
+	{
+	   switch ( $group ) 
+	   {
+	       case "posts":
+	       case "pages":
+				$group = rtrim($group, "s");
+				$posts = smart404_search($search, $group);
+				$mct = count( $posts );
+				if ($mct > 0)
+				{
+		      		if ( $take_1st_match or ($take_exact_match and $mct = 1)) 
+		        	{
+						if ( $debug_smart404 > 0 )
+						   	error_log("smart404_redirect:general:" 
+								. ($take_1st_match? "take_1st_match":"") 
+								. ($take_exact_match? "take_exact_match":"") 
+								. $group . ": " . $posts[0]->title);
+		          		wp_redirect( 
+		          			get_permalink( $posts[0]->ID )
+		          			. '?' . http_build_query($get_params), 
+		          			301, "smart-404");
+		   	    		exit;
+					}
+				}
+				break;                
+	
+	       case "tags":
+				$posts = get_tags( array ( "name__like" => $search ) );
+				$mct = count( $posts );
+				if ( $mct > 0 ) 
+				{
+		     		if ( $take_1st_match ) 
+		      		{
+					   	if ( $debug_smart404 > 0 )
+					      	error_log("smart404_redirect:general:" 
+								. ($take_1st_match ? "take_1st_match":"") 
+								. ":tag:" . $posts[0]->name);
+				  		$redir = get_tag_link(
+				  					$posts[0]->term_id)
+		          					. '?' . http_build_query($get_params), 
+		          					301, "smart-404");
+				        if ( $debug_smart404 > 1 )
+					        error_log("smart404_redirect redir=". $redir);
+		          		wp_redirect($redir, 301, "smart-404");
+				   		exit;
+		   			}
+		    	}
+		   		break;
+	
+	      case "categories":
+				$posts = get_categories( array ( "name__like" => $search ) );
+				$mct = count( $posts );
+				if ( $mct > 0 ) 
+				{
+					if ( $take_1st_match  ) 
+					{
+			     		if ( $debug_smart404 > 0 )
+			     			error_log("smart404_redirect:exact:take_1st_match" 
+			     			. ":category:" . $posts[0]->name);
+			         	wp_redirect(
+			         		get_category_link($posts[0]->term_id)
+		          			. '?' . http_build_query($get_params), 
+		          			301, "smart-404");
+			         	exit;
+					}
+			    }
+			    break;
+		}
+	   	if ( $debug_smart404 > 1 )
+			error_log("smart404_redirect: general: ". $group . ": #matches: ". $mct
+				. ( $debug_smart404 > 4 ? ":" . print_r($posts,true) : ""));
+		$matches = array_unique(array_merge($matches, $posts), SORT_REGULAR);
+	}
+
+	$mct = count( $matches );
+	if ( $walk_uri and ( $mct == 0 ) ) 
+	{
+		$tail = basename($uri);
+		$uri = join("/", array_slice(explode("/", $uri),0,-1)); /* drop last element */
+		if ( $uri )
+		{
+			if ( $debug_smart404 > 1 )
+	  		   error_log("smart404_redirect:walk_uri=" . $uri . "= tail=" . $tail);
+	  		$get_params['walkuri'][]= $tail;
+			wp_redirect($uri . '?' . http_build_query($get_params), 301, "smart-404");
+			exit;
+		}
+	}
+
+	smart404_set_suggestions($matches);
+	if ( $debug_smart404 > 0 )
+		error_log("smart404_redirect: uri=" . $uri . "= #matches=" . $mct);
 }
 
 /**
@@ -287,7 +335,8 @@ function smart404_search($search, $type) {
 	
 	return $posts;
 }
-
+ 
+ 
 /**
  * Filter to keep the inbuilt 404 handlers at bay
  *
@@ -356,7 +405,7 @@ function smart404_options_page() {
 		<th scope="row"><?php _e('Replacements:') ?></th>
 		<td>
 			<textarea name="replacements" cols="44" rows="5"><?php echo htmlspecialchars(get_option('replacements')); ?></textarea><br />
-			<?php _e("One regex per line to replace & retry. Regular expressions are required."); ?>
+			<?php _e("One regex per line to replace & retry. Regular expressions are required, no commas. useful for searching alternate/relocated directories"); ?>
 		</td>
 	</tr>
 	
@@ -418,9 +467,10 @@ function smart404_options_page() {
  * @return	boolean	True if there are some suggestions, false otherwise
  */
 function smart404_has_suggestions() {
-	return ( isset ( $GLOBALS["__smart404"]["suggestions"] ) 
-		&& is_array( $GLOBALS["__smart404"]["suggestions"] ) 
-		&&    count( $GLOBALS["__smart404"]["suggestions"] ) > 0 ); 
+	$suggestions = smart404_get_suggestions();
+	return ( isset ( $suggestions )
+		&& is_array( $suggestions )
+		&&    count( $suggestions) > 0 ); 
 }
 
 /**
@@ -435,45 +485,63 @@ function smart404_get_suggestions() {
 	return $GLOBALS["__smart404"]["suggestions"];
 }
 
+function smart404_set_suggestions($suggestions) 
+{
+	$GLOBALS["__smart404"]["suggestions"] = $suggestions;
+}
+
 /**
  * Template tag to render HTML list of suggestions
  *
  * @package Smart404
  * @since 0.1
  *
- * @param	format	string	How to display the items: flat (just links, separated by line-breaks), list (li items)
+ * @param	format	string	How to display the items: 
+ 	- flat (just links, separated by line-breaks), 
+ 	- list (ul/li items)
  * @return	boolean	True if some suggestions were rendered, false otherwise
  */
-function smart404_suggestions($format = 'flat') 
+function smart404_suggestions($format = 'list') 
 {
-	if ( !smart404_get_suggestions()) 
+	$suggestions = smart404_get_suggestions();
+	if ( ! $suggestions )
 		return false;
 	
 	echo '<div id="smart404_suggestions">';
 	if ( $format == 'list' )
 		echo '<ul>';
 		
-	foreach ( (array) $GLOBALS["__smart404"]["suggestions"] as $post ) 
+	foreach ( (array) $suggestions as $post ) 
 	{
-	   $post_title = trim($post->post_title);
-	   if ( $post_title )
-	   {
-    		if ( $format == "list" )
-    			echo '<li>';	
-    		?>
-    		<a href="<?php echo get_permalink($post->ID); ?>"><?php echo $post_title; ?></a>
-    		<?php
-    		
-    		if ( $format == "list" )
-    			echo '</li>';
-    		else
-    			echo '<br />';
-	   }
+       if ( $format == "list" )
+    		echo '<li>';
+
+       if (is_a($post, "WP_Post"))
+       {
+    	    $post_title = trim($post->post_title);
+    	    $postLink   = get_permalink($post->ID);
+		}
+		else if (is_a($post, "WP_Term"))
+		{
+			if ( $post->taxonomy == "post_tag" )
+				$post_title = "tag: " . $post->name;
+			else
+				$post_title = $post->taxonomy . ": " . trim($post->category_nicename);
+			$postLink = get_term_link($post->term_id, $post->taxonomy);            
+	    }
+	    else
+	    {
+    		error_log("smart404_suggestions -------- unhandled post type: ". get_class($post));
+	    	$post_title = null;
+	    }
+
+       if ( $post_title )
+    	     echo "<a href='".  $postLink . "'>" . $post_title . "</a>";
+    	echo ( $format == "list" ? '</li>' : '<br />');
 	}
 	
 	if ( $format == 'list')
 		echo '</ul>';
-		
 	echo '</div>';
 	
 	return true;
@@ -487,13 +555,15 @@ function smart404_suggestions($format = 'flat')
  *
  * @return	boolean	True if there are some posts to loop over, false otherwise
  */
-function smart404_loop() {
-	if ( !smart404_get_suggestions() )
+function smart404_loop() 
+{
+	$suggestions = smart404_get_suggestions();
+	if ( ! $suggestions)
 		return false;
-	
-	$postids = array_map(create_function('$a', 'return $a->ID;'), $GLOBALS["__smart404"]["suggestions"]);
-	
+
+	$postids = array_map(create_function('$a', 'return $a->ID;'), $suggestions);
 	query_posts( array( "post__in" => $postids ) );
+	
 	return have_posts();
 }
 
@@ -505,15 +575,61 @@ function smart404_loop() {
  *
  * @return Array or string of search terms
  */
-function smart404_get_search_terms($format = 'array') 
+function smart404_get_search_terms($format = 'array')
 {
-    $rtn = str_replace("?redir=", " ", $GLOBALS["__smart404"]["search_words"]);
+    $rtn = $GLOBALS["__smart404"]["search_words"];
 	if ($format != 'array')
 		$rtn = trim(implode(" ", $rtn));
 	return $rtn;
 }
+function smart404_set_search_words($search_words, $delim = " ") 
+{
+	$GLOBALS["__smart404"]["search_words"] = (
+			is_array($search_words)
+				?  $search_words
+				:  explode($delim, trim($search_words)));
+}
+/**
+ * Template tag for 404-page
+ */
+?>
+function smart404_display_suggestions($themename = "smart-404") 
+{ 
+	echo "<div class=smart404>";
+	_e( 'Apologies, but the page you requested could not be found.',$themename);
+	if (smart404_has_suggestions())
+	{
+		echo "<br/>";
+		_e( 'Perhaps one of these is what you are looking for:',$themename);
+		smart404_suggestions("list");
+		echo "<br> or";
+	}
+	else
+		echo "<br>Please";
+	_e( 'Perhaps one of these is what you are looking for:',$themename);
+?>
 
+ <form role="search" method="get" id="searchform"
+    class="searchform" action="<?php echo esc_url( home_url( '/' ) ); ?>">
+    <div>
+        <label class="screen-reader-text" for="s"><?php _x( 'Search for:', 'label' ); ?></label>
+        <input type="text" value="<?php echo smart404_get_search_terms('string') ?>" 
+			style="width:40%;background-color:#e6ddcc!important;" name="s" id="s" />
+        <input type="submit" id="searchsubmit"
+ style="background-color:#e6ddcc!important;"
+			   value="<?php echo esc_attr_x( 'Search', 'submit button' ); ?>" />
+    </div>
+ </form>
+	<script type="text/javascript">
+		// load, focus on search field
+        sf = document.getElementById('s');
+        sf.focus();
+	</script>
+ </div>
+<?php
+}
 // Set up plugin
+smart404_set_search_words(array());
 
 add_action( 'template_redirect', 'smart404_redirect' );
 add_filter( 'redirect_canonical', 'smart404_redirect_canonical_filter', 10, 2 );
@@ -528,6 +644,24 @@ add_option( 'search_whole_uri', 'search_whole_uri' );
 add_option( 'debug_smart404', '0' );
 add_option( 'walk_uri', 'walk_uri' );
 
-$GLOBALS["__smart404"]["search_words"] = array();
 
+function get_the_user_ip() 
+{
+	if ( ! empty( $_SERVER['HTTP_CLIENT_IP'] ) )
+	{
+	//check ip from share internet	
+		$ip = $_SERVER['HTTP_CLIENT_IP'];	
+	}
+	elseif ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) 
+	{
+		//to check ip is pass from proxy
+		$ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+	} 
+	else 
+	{
+		$ip = $_SERVER['REMOTE_ADDR'];
+	}
+		
+	return apply_filters( 'wpb_get_ip', $ip );	
+}
 ?>
