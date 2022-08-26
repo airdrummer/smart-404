@@ -1,6 +1,6 @@
 # Smart 404 for WordPress
 
-*This is an updated continuation of [Michael Tyson's original plugin](http://atastypixel.com/blog/wordpress/plugins/smart-404/). He gave me commit access a looong time ago and I just remembered, so will push a new version with minor fix*
+*This is an updated continuation of [Michael Tyson's original plugin](http://atastypixel.com/blog/wordpress/plugins/smart-404/). 
 
 Save visitors to your WordPress site from unhelpful 404 errors!
 
@@ -24,15 +24,28 @@ Get Smart 404 over at the Smart 404 WordPress Plugin page!
 
 ## Configuration
 
-There are two configuration options for Smart 404:
+There are many configuration options for Smart 404:
 
 ### Search
 
-Turn on or off searching of posts, pages, tags and categories
+Turn on or off searching of posts, pages, tags and categories; drag up&down to change priorities.
+
+### Replacements
+
+One regex per line to replace & retry. Regular expressions are required, no commas. useful for searching alternate/relocated directories
+
+for example:
+
+	^/originalSite/,/
+	^/bucfdiaSite/,/originalSite/
+	^/2016site/,/bucfdiaSite/
+	^/,/2016site/
+	
+will redirect to each of the alternates in turn, until found or list is exhausted	
 
 ### Ignored patterns
 
-A newline-separated list of terms or patterns to ignore from the URL. This is particularly useful for supporting old permalinks with an ID number in them. For example, to work with URLs like:
+A newline-separated list of terms or patterns in the URL to ignore while searching. This is particularly useful for supporting old permalinks with an ID number in them. For example, to work with URLs like:
 
     123-post-title.html
 
@@ -42,6 +55,20 @@ Add the regular expression pattern:
 
 This will ignore all numbers, followed by a hyphen, at the start of the URL.
 
+### skip redirection of ignored patterns 
+
+if pattern is found in url, skip it rather than just not searching the page.
+
+### Redirection options:	
+
+ - redirect to 1st match found, otherwise show all matches
+ - redirect to exact match if found
+ - try to match on whole uri; default is tail only
+ - try walking up uri
+ 
+### Debug
+	>0 to send debug to error log (1-5) 
+	
 ### Template Configuration
 
 To provide a helpful list of suggested posts in your 404 pages, modify the 404.php template in your theme to use a Smart 404 template tag. For example:
@@ -67,19 +94,24 @@ Or, for something a little more complicated:
     <?php endwhile; ?>
     <?php endif; ?>
 ```
+See 404-template.php for an example using 
+	smart404_display_suggestions($themename = "smart-404") 
+which renders the list of suggestions and fills a search form with the search terms used
 
 Note that smart404_loop() will only work for posts, not pages, due to limitations in the loop mechanism. Several template tags are supplied by Smart 404 for use in the 404.php template:
-smart404_has_suggestions
 
+smart404_has_suggestions()
 Returns true if there are some suggestions, false otherwise
-smart404_get_suggestions
 
+smart404_get_suggestions()
 Retrieve an array of post objects for rendering manually.
-smart404_suggestions
 
-Draw a list of suggested posts.
+smart404_suggestions($format = 'list') 
+render a <div id="smart404_suggestions"> of suggested posts.
+Pass the parameter “list” to render suggestions as <ul><li>, otherwise <br>separate lines
 
-Pass the parameter “list” to render suggestions as a list.
+smart404_get_search_terms($format = 'array')
+return array or string of search terms used
+
 smart404_loop
-
 Query posts for use in a Loop. See the second example above for usage. Note that smart404_loop() will only work for posts, not pages, due to limitations in the loop mechanism.
